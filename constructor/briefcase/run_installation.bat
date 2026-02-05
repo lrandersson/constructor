@@ -1,9 +1,12 @@
 set "INSTDIR=%cd%"
 set "BASE_PATH=%INSTDIR%\base"
 set "PREFIX=%BASE_PATH%"
-set "CONDA_EXE=%INSTDIR%\_conda.exe"
+set "CONDA_EXE=%INSTDIR%\{{ conda_exe_name }}"
+set "PAYLOAD_TAR=%INSTDIR%\{{ archive_name }}"
 
-"%INSTDIR%\_conda.exe" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs
+tar -xzf "%PAYLOAD_TAR%" -C "%INSTDIR%"
+
+"%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs
 
 set CONDA_PROTECT_FROZEN_ENVS=0
 set "CONDA_ROOT_PREFIX=%BASE_PATH%"
@@ -11,4 +14,7 @@ set CONDA_SAFETY_CHECKS=disabled
 set CONDA_EXTRA_SAFETY_CHECKS=no
 set "CONDA_PKGS_DIRS=%BASE_PATH%\pkgs"
 
-"%INSTDIR%\_conda.exe" install --offline --file "%BASE_PATH%\conda-meta\initial-state.explicit.txt" -yp "%BASE_PATH%"
+"%CONDA_EXE%" install --offline --file "%BASE_PATH%\conda-meta\initial-state.explicit.txt" -yp "%BASE_PATH%"
+
+rem Truncates the payload to 0 bytes
+type nul > "%PAYLOAD_TAR%"

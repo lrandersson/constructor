@@ -1,4 +1,5 @@
 import sys
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -154,30 +155,65 @@ def test_name_no_alphanumeric(name):
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
 def test_prepare_payload():
+    """Test preparing the payload."""
     info = mock_info.copy()
     payload = Payload(info)
     payload.prepare()
     assert payload.root.is_dir()
 
 
+@pytest.mark.parametrize("as_archive", [True, False])
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
-def test_payload_layout():
+def test_payload_layout(as_archive):
+    """Test the layout of the payload and verify that archiving
+    parts of the payload works as expected.
+    """
     info = mock_info.copy()
     payload = Payload(info)
-    prepared_payload = payload.prepare()
+    prepared_payload = payload.prepare(as_archive=as_archive)
 
     external_dir = prepared_payload.root / "external"
     assert external_dir.is_dir() and external_dir == prepared_payload.external
 
     base_dir = prepared_payload.root / "external" / "base"
-    assert base_dir.is_dir() and base_dir == prepared_payload.base
-
     pkgs_dir = prepared_payload.root / "external" / "base" / "pkgs"
-    assert pkgs_dir.is_dir() and pkgs_dir == prepared_payload.pkgs
+    archive_path = external_dir / payload.archive_name
+    if as_archive:
+        # Since archiving removes the directory 'base_dir' and its contents
+        assert not base_dir.exists()
+        assert not pkgs_dir.exists()
+        assert archive_path.exists()
+    else:
+        assert base_dir.is_dir() and base_dir == prepared_payload.base
+        assert pkgs_dir.is_dir() and pkgs_dir == prepared_payload.pkgs
+        assert not archive_path.exists()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+def test_payload_archive(tmp_path: Path):
+    """Test that the payload archive function works as expected."""
+    info = mock_info.copy()
+    payload = Payload(info)
+
+    foo_dir = tmp_path / "foo"
+    foo_dir.mkdir()
+
+    expected_text = "some test text"
+    hello_file = foo_dir / "hello.txt"
+    hello_file.write_text(expected_text, encoding="utf-8")
+
+    archive_path = payload.make_tar_gz(foo_dir, tmp_path)
+
+    with tarfile.open(archive_path, mode="r:gz") as tar:
+        member = tar.getmember("foo/hello.txt")
+        f = tar.extractfile(member)
+        assert f is not None
+        assert f.read().decode("utf-8") == expected_text
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
 def test_payload_remove():
+    """Test removing the payload."""
     info = mock_info.copy()
     payload = Payload(info)
     prepared_payload = payload.prepare()
@@ -189,6 +225,7 @@ def test_payload_remove():
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
 def test_payload_pyproject_toml():
+    """Test that the pyproject.toml file is created when the payload is prepared."""
     info = mock_info.copy()
     payload = Payload(info)
     prepared_payload = payload.prepare()
@@ -198,8 +235,29 @@ def test_payload_pyproject_toml():
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
 def test_payload_conda_exe():
+    """Test that conda-standalone is prepared."""
     info = mock_info.copy()
     payload = Payload(info)
     prepared_payload = payload.prepare()
     conda_exe = prepared_payload.external / "_conda.exe"
     assert conda_exe.is_file()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+def test_payload_templates_are_rendered():
+    """Test that templates are rendered when the payload is prepared."""
+
+    def assert_no_jinja_markers(path: Path) -> None:
+        """Dummy check to verify we have rendered everything as expected."""
+        text = path.read_text(encoding="utf-8")
+        assert "{{" not in text and "}}" not in text
+        assert "{%" not in text and "%}" not in text
+        assert "{#" not in text and "#}" not in text
+
+    info = mock_info.copy()
+    payload = Payload(info)
+    payload.prepare()
+    assert len(payload.rendered_templates) >= 2  # There should be at least two files
+    for f in payload.rendered_templates:
+        assert f.dst.is_file()
+        assert_no_jinja_markers(f.dst)
