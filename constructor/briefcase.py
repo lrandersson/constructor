@@ -261,8 +261,8 @@ class Payload:
         return layout
 
     def remove(self) -> None:
-        if self.root:
-            shutil.rmtree(self.root)
+        # TODO discuss if we should ignore errors or similar here etc
+        shutil.rmtree(self.root)
 
     def make_tar_gz(self, src: Path, dst: Path) -> Path:
         """Create a .tar.gz of the directory 'src'.
