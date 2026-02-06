@@ -365,8 +365,8 @@ class Payload:
                     "use_full_install_path": False,
                     "install_launcher": False,
                     "install_option": create_install_options_list(self.info),
-                    "post_install_script": str(self.rendered_templates["post_install_script"]),
-                    "pre_uninstall_script": str(self.rendered_templates["pre_uninstall_script"]),
+                    "post_install_script": str(self.rendered_templates["post_install_script"].dst),
+                    "pre_uninstall_script": str(self.rendered_templates["pre_uninstall_script"].dst),
                 }
             },
         }
