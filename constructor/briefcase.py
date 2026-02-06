@@ -2,6 +2,7 @@
 Logic to build installers using Briefcase.
 """
 
+import functools
 import logging
 import re
 import shutil
@@ -238,16 +239,34 @@ class Payload:
     """
 
     info: dict
-    root: Path | None = None
     archive_name: str = "payload.tar.gz"
     conda_exe_name: str = "_conda.exe"
     rendered_templates: list[TemplateFile] | None = None
 
-    def prepare(self, as_archive: bool = True) -> PayloadLayout:
-        """Prepares the payload. Toggle 'as_archive' (default True) to convert the
-        payload directory 'base' and its contents into an archive.
+    @functools.cached_property
+    def root(self) -> Path:
+        """Create root upon first access and cache it."""
+        return Path(tempfile.mkdtemp(prefix="payload-"))
+
+    def remove(self, *, ignore_errors: bool = True) -> None:
+        """Remove the root of the payload.
+        This function requires some extra care due to the root being a cached property.
         """
-        root = self._ensure_root()
+        root = getattr(self, "root", None)
+        if root is None:
+            return
+        shutil.rmtree(root, ignore_errors=ignore_errors)
+        # Now we drop the cached value so next access will recreate if desired
+        try:
+            delattr(self, "root")
+        except Exception:
+            # delattr on a cached_property may raise on some versions / edge cases
+            pass
+
+    def prepare(self) -> PayloadLayout:
+        """Prepares the payload.
+        """
+        root = self.root
         layout = self._create_layout(root)
         self.write_pyproject_toml(layout)
 
@@ -256,18 +275,16 @@ class Payload:
         self._stage_dists(layout)
         self._stage_conda(layout)
 
-        if as_archive:
-            self._convert_into_archive(layout.base, layout.external)
+        archive_path = self.make_tar_gz(layout.base, layout.external)
+        if not archive_path.exists():
+            raise RuntimeError(f"Unexpected error, failed to create archive: {archive_path}")
         return layout
-
-    def remove(self) -> None:
-        # TODO discuss if we should ignore errors or similar here etc
-        shutil.rmtree(self.root)
 
     def make_tar_gz(self, src: Path, dst: Path) -> Path:
         """Create a .tar.gz of the directory 'src'.
         The inputs 'src' and 'dst' must both be existing directories.
         Returns the path to the .tar.gz.
+        The directory specified via 'src' is removed after successful creation.
 
         Example:
             payload = Payload(...)
@@ -287,15 +304,6 @@ class Payload:
         with tarfile.open(archive_path, mode="w:gz", compresslevel=1) as tar:
             tar.add(src, arcname=src.name)
 
-        return archive_path
-
-    def _convert_into_archive(self, src: Path, dst: Path) -> Path:
-        """Create a .tar.gz of 'src' in 'dst' and remove 'src' after successful creation."""
-        archive_path = self.make_tar_gz(src, dst)
-
-        if not archive_path.exists():
-            raise RuntimeError(f"Unexpected error, failed to create archive: {archive_path}")
-
         shutil.rmtree(src)
         return archive_path
 
@@ -303,17 +311,16 @@ class Payload:
         """Render all configured Jinja templates into the payload root directory.
         The set of successfully rendered templates is recorded on the instance and returned to the caller.
         """
-        root = self._ensure_root()
         templates = [
             TemplateFile(
                 name="post_install_script",
                 src=BRIEFCASE_DIR / "run_installation.bat",
-                dst=root / "run_installation.bat",
+                dst=self.root / "run_installation.bat",
             ),
             TemplateFile(
                 name="pre_uninstall_script",
                 src=BRIEFCASE_DIR / "pre_uninstall.bat",
-                dst=root / "pre_uninstall.bat",
+                dst=self.root / "pre_uninstall.bat",
             ),
         ]
         context = {
@@ -355,11 +362,6 @@ class Payload:
         # Finalize
         (layout.root / "pyproject.toml").write_text(tomli_w.dumps({"tool": {"briefcase": config}}))
         logger.debug(f"Created TOML file at: {layout.root}")
-
-    def _ensure_root(self) -> Path:
-        if self.root is None:
-            self.root = Path(tempfile.mkdtemp())
-        return self.root
 
     def _create_layout(self, root: Path) -> PayloadLayout:
         """The layout is created as:

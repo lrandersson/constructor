@@ -162,15 +162,14 @@ def test_prepare_payload():
     assert payload.root.is_dir()
 
 
-@pytest.mark.parametrize("as_archive", [True, False])
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
-def test_payload_layout(as_archive):
+def test_payload_layout():
     """Test the layout of the payload and verify that archiving
     parts of the payload works as expected.
     """
     info = mock_info.copy()
     payload = Payload(info)
-    prepared_payload = payload.prepare(as_archive=as_archive)
+    prepared_payload = payload.prepare()
 
     external_dir = prepared_payload.root / "external"
     assert external_dir.is_dir() and external_dir == prepared_payload.external
@@ -178,15 +177,10 @@ def test_payload_layout(as_archive):
     base_dir = prepared_payload.root / "external" / "base"
     pkgs_dir = prepared_payload.root / "external" / "base" / "pkgs"
     archive_path = external_dir / payload.archive_name
-    if as_archive:
-        # Since archiving removes the directory 'base_dir' and its contents
-        assert not base_dir.exists()
-        assert not pkgs_dir.exists()
-        assert archive_path.exists()
-    else:
-        assert base_dir.is_dir() and base_dir == prepared_payload.base
-        assert pkgs_dir.is_dir() and pkgs_dir == prepared_payload.pkgs
-        assert not archive_path.exists()
+    # Since archiving removes the directory 'base_dir' and its contents
+    assert not base_dir.exists()
+    assert not pkgs_dir.exists()
+    assert archive_path.exists()
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
