@@ -4,8 +4,7 @@ set "PREFIX=%BASE_PATH%"
 set "CONDA_EXE=%INSTDIR%\{{ conda_exe_name }}"
 set "PAYLOAD_TAR=%INSTDIR%\{{ archive_name }}"
 
-tar -xzf "%PAYLOAD_TAR%" -C "%INSTDIR%"
-
+"%CONDA_EXE%" constructor extract --prefix "%INSTDIR%" --tar-from-stdin < "%PAYLOAD_TAR%"
 "%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs
 
 set CONDA_PROTECT_FROZEN_ENVS=0
