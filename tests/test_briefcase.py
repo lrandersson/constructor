@@ -246,18 +246,13 @@ def test_payload_conda_exe():
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
 def test_payload_templates_are_rendered():
     """Test that templates are rendered when the payload is prepared."""
-
-    def assert_no_jinja_markers(path: Path) -> None:
-        """Dummy check to verify we have rendered everything as expected."""
-        text = path.read_text(encoding="utf-8")
-        assert "{{" not in text and "}}" not in text
-        assert "{%" not in text and "%}" not in text
-        assert "{#" not in text and "#}" not in text
-
     info = mock_info.copy()
     payload = Payload(info)
     payload.prepare()
     assert len(payload.rendered_templates) >= 2  # There should be at least two files
     for f in payload.rendered_templates:
         assert f.dst.is_file()
-        assert_no_jinja_markers(f.dst)
+        text = f.dst.read_text(encoding="utf-8")
+        assert "{{" not in text and "}}" not in text
+        assert "{%" not in text and "%}" not in text
+        assert "{#" not in text and "#}" not in text
