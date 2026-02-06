@@ -21,7 +21,7 @@ else:
     tomli_w = None  # This file is only intended for Windows use
 
 from . import preconda
-from .template_file import TemplateFile, render_template_files
+from .jinja import render_template
 from .utils import DEFAULT_REVERSE_DOMAIN_ID, copy_conda_exe, filename_dist
 
 BRIEFCASE_DIR = Path(__file__).parent / "briefcase"
@@ -221,6 +221,13 @@ def create_install_options_list(info: dict) -> list[dict]:
 
     return options
 
+@dataclass(frozen=True)
+class TemplateFile:
+    """A specification for a single Jinja template to an output file."""
+
+    src: Path
+    dst: Path
+
 
 @dataclass(frozen=True)
 class PayloadLayout:
@@ -241,7 +248,6 @@ class Payload:
     info: dict
     archive_name: str = "payload.tar.gz"
     conda_exe_name: str = "_conda.exe"
-    rendered_templates: list[TemplateFile] | None = None
 
     @functools.cached_property
     def root(self) -> Path:
@@ -268,6 +274,8 @@ class Payload:
         """
         root = self.root
         layout = self._create_layout(root)
+        # Render the template files and add them to the necessary config field
+        self.rendered_templates = self.render_templates()
         self.write_pyproject_toml(layout)
 
         preconda.write_files(self.info, layout.base)
@@ -307,28 +315,37 @@ class Payload:
         shutil.rmtree(src)
         return archive_path
 
-    def render_templates(self) -> list[TemplateFile]:
-        """Render all configured Jinja templates into the payload root directory.
-        The set of successfully rendered templates is recorded on the instance and returned to the caller.
-        """
-        templates = [
-            TemplateFile(
-                name="post_install_script",
+    @functools.cached_property
+    def rendered_templates(self) -> dict[str: TemplateFile]:
+        """Render and cache the configured templates under the payload root."""
+        templates = {
+            "post_install_script": TemplateFile(
                 src=BRIEFCASE_DIR / "run_installation.bat",
                 dst=self.root / "run_installation.bat",
             ),
-            TemplateFile(
-                name="pre_uninstall_script",
+            "pre_uninstall_script": TemplateFile(
                 src=BRIEFCASE_DIR / "pre_uninstall.bat",
                 dst=self.root / "pre_uninstall.bat",
             ),
-        ]
-        context = {
+        }
+
+        context: dict[str, str] = {
             "archive_name": self.archive_name,
             "conda_exe_name": self.conda_exe_name,
         }
-        render_template_files(templates, context)
-        self.rendered_templates = templates
+
+        # Render the templates now using jinja and the defined context
+        for f in templates.values():
+            if not f.src.exists():
+                raise FileNotFoundError(f.src)
+            rendered = render_template(f.src.read_text(encoding="utf-8"), **context)
+            f.dst.parent.mkdir(parents=True, exist_ok=True)
+            f.dst.write_text(rendered, encoding="utf-8", newline="\r\n")
+
+        return templates
+
+    def render_templates(self) -> dict[str: TemplateFile]:
+        """Render templates if necessary and return the cached result."""
         return self.rendered_templates
 
     def write_pyproject_toml(self, layout: PayloadLayout) -> None:
@@ -348,12 +365,12 @@ class Payload:
                     "use_full_install_path": False,
                     "install_launcher": False,
                     "install_option": create_install_options_list(self.info),
+                    "post_install_script": str(self.rendered_templates["post_install_script"]),
+                    "pre_uninstall_script": str(self.rendered_templates["pre_uninstall_script"]),
                 }
             },
         }
-        # Render the template files and add them to the necessary config field
-        rendered_templates = self.render_templates()
-        config["app"][app_name].update({t.name: str(t.dst) for t in rendered_templates})
+
 
         # Add optional content
         if "company" in self.info:
