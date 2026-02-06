@@ -309,7 +309,7 @@ class Payload:
 
         archive_path = dst / self.archive_name
 
-        with tarfile.open(archive_path, mode="w:gz", compresslevel=1) as tar:
+        with tarfile.open(archive_path, mode="w:gz") as tar:
             tar.add(src, arcname=src.name)
 
         shutil.rmtree(src)
