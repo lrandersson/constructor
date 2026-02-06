@@ -16,5 +16,5 @@ set "CONDA_PKGS_DIRS=%BASE_PATH%\pkgs"
 
 "%CONDA_EXE%" install --offline --file "%BASE_PATH%\conda-meta\initial-state.explicit.txt" -yp "%BASE_PATH%"
 
-rem Truncates the payload to 0 bytes
-type nul > "%PAYLOAD_TAR%"
+rem Delete the payload to save disk space, a truncated placeholder of 0 bytes is recreated during uninstall
+del "%PAYLOAD_TAR%"
