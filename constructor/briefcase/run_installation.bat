@@ -15,5 +15,7 @@ set "CONDA_PKGS_DIRS=%BASE_PATH%\pkgs"
 
 "%CONDA_EXE%" install --offline --file "%BASE_PATH%\conda-meta\initial-state.explicit.txt" -yp "%BASE_PATH%"
 
-rem Delete the payload to save disk space, a truncated placeholder of 0 bytes is recreated during uninstall
+rem Delete the payload to save disk space.
+rem A truncated placeholder of 0 bytes is recreated during uninstall
+rem because MSI expects the file to be there to clean the registry.
 del "%PAYLOAD_TAR%"

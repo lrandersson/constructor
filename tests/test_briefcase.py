@@ -242,9 +242,9 @@ def test_payload_templates_are_rendered():
     """Test that templates are rendered when the payload is prepared."""
     info = mock_info.copy()
     payload = Payload(info)
-    payload.prepare()
-    assert len(payload.rendered_templates) >= 2  # There should be at least two files
-    for f in payload.rendered_templates.values():
+    rendered_templates = payload.render_templates()
+    assert len(rendered_templates) == 2  # There should be at least two files
+    for f in rendered_templates:
         assert f.dst.is_file()
         text = f.dst.read_text(encoding="utf-8")
         assert "{{" not in text and "}}" not in text

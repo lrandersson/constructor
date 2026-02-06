@@ -275,7 +275,7 @@ class Payload:
         root = self.root
         layout = self._create_layout(root)
         # Render the template files and add them to the necessary config field
-        self.rendered_templates = self.render_templates()
+        self.render_templates()
         self.write_pyproject_toml(layout)
 
         preconda.write_files(self.info, layout.base)
@@ -315,19 +315,18 @@ class Payload:
         shutil.rmtree(src)
         return archive_path
 
-    @functools.cached_property
-    def rendered_templates(self) -> dict[str: TemplateFile]:
-        """Render and cache the configured templates under the payload root."""
-        templates = {
-            "post_install_script": TemplateFile(
+    def render_templates(self) -> list[str: TemplateFile]:
+        """Render the configured templates under the payload root."""
+        templates = [
+            TemplateFile(
                 src=BRIEFCASE_DIR / "run_installation.bat",
                 dst=self.root / "run_installation.bat",
             ),
-            "pre_uninstall_script": TemplateFile(
+            TemplateFile(
                 src=BRIEFCASE_DIR / "pre_uninstall.bat",
                 dst=self.root / "pre_uninstall.bat",
             ),
-        }
+        ]
 
         context: dict[str, str] = {
             "archive_name": self.archive_name,
@@ -335,7 +334,7 @@ class Payload:
         }
 
         # Render the templates now using jinja and the defined context
-        for f in templates.values():
+        for f in templates:
             if not f.src.exists():
                 raise FileNotFoundError(f.src)
             rendered = render_template(f.src.read_text(encoding="utf-8"), **context)
@@ -343,10 +342,6 @@ class Payload:
             f.dst.write_text(rendered, encoding="utf-8", newline="\r\n")
 
         return templates
-
-    def render_templates(self) -> dict[str: TemplateFile]:
-        """Render templates if necessary and return the cached result."""
-        return self.rendered_templates
 
     def write_pyproject_toml(self, layout: PayloadLayout) -> None:
         name, version = get_name_version(self.info)
@@ -365,8 +360,8 @@ class Payload:
                     "use_full_install_path": False,
                     "install_launcher": False,
                     "install_option": create_install_options_list(self.info),
-                    "post_install_script": str(self.rendered_templates["post_install_script"].dst),
-                    "pre_uninstall_script": str(self.rendered_templates["pre_uninstall_script"].dst),
+                    "post_install_script": str(layout.root / "post_install.bat"),
+                    "pre_uninstall_script": str(layout.root / "pre_uninstall.bat"),
                 }
             },
         }
