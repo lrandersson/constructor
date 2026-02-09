@@ -196,7 +196,7 @@ def test_payload_archive(tmp_path: Path):
     hello_file = foo_dir / "hello.txt"
     hello_file.write_text(expected_text, encoding="utf-8")
 
-    archive_path = payload.make_tar_gz(foo_dir, tmp_path)
+    archive_path = payload.make_archive(foo_dir, tmp_path)
 
     with tarfile.open(archive_path, mode="r:gz") as tar:
         member = tar.getmember("foo/hello.txt")

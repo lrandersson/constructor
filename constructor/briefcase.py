@@ -283,22 +283,22 @@ class Payload:
         self._stage_dists(layout)
         self._stage_conda(layout)
 
-        archive_path = self.make_tar_gz(layout.base, layout.external)
+        archive_path = self.make_archive(layout.base, layout.external)
         if not archive_path.exists():
             raise RuntimeError(f"Unexpected error, failed to create archive: {archive_path}")
         return layout
 
-    def make_tar_gz(self, src: Path, dst: Path) -> Path:
-        """Create a .tar.gz of the directory 'src'.
+    def make_archive(self, src: Path, dst: Path) -> Path:
+        """Create an archive of the directory 'src'.
         The inputs 'src' and 'dst' must both be existing directories.
-        Returns the path to the .tar.gz.
         The directory specified via 'src' is removed after successful creation.
+        Returns the path to the archive.
 
         Example:
             payload = Payload(...)
             foo = Path('foo')
             bar = Path('bar')
-            targz = payload.make_tar_gz(foo, bar)
+            targz = payload.make_archive(foo, bar)
             This will create the file bar\\<payload.archive_name> containing 'foo' and all its contents.
 
         """
