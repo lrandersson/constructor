@@ -309,7 +309,8 @@ class Payload:
 
         archive_path = dst / self.archive_name
 
-        with tarfile.open(archive_path, mode="w:gz") as tar:
+        archive_type = archive_path.suffix[1:] # since suffix starts with '.'
+        with tarfile.open(archive_path, mode=f"w:{archive_type}", compresslevel=1) as tar:
             tar.add(src, arcname=src.name)
 
         shutil.rmtree(src)
