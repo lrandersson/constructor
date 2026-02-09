@@ -360,7 +360,7 @@ class Payload:
                     "use_full_install_path": False,
                     "install_launcher": False,
                     "install_option": create_install_options_list(self.info),
-                    "post_install_script": str(layout.root / "post_install.bat"),
+                    "post_install_script": str(layout.root / "run_installation.bat"),
                     "pre_uninstall_script": str(layout.root / "pre_uninstall.bat"),
                 }
             },
