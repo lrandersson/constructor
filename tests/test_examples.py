@@ -419,7 +419,20 @@ def _run_uninstaller_msi(
         str(installer),
         "/qn",
     ]
-    process = _execute(cmd, timeout=timeout, check=check)
+    log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "_uninstall.log")
+    cmd.extend(["/L*V", str(log_path)])
+    try:
+        process = _execute(cmd, timeout=timeout, check=check)
+    except subprocess.CalledProcessError as e:
+        if log_path.exists():
+            # When running on the CI system, it tries to decode a UTF-16 log file as UTF-8,
+            # therefore we need to specify encoding before printing.
+            print(f"\n=== MSI UNINSTALL LOG {log_path} START ===")
+            print(
+                log_path.read_text(encoding="utf-16", errors="replace")[-15000:]
+            )  # last 15k chars
+            print(f"\n=== MSI UNINSTALL LOG {log_path} END ===")
+        raise e
     if check:
         # TODO:
         # Check log and if there are remaining files, similar to the exe installers
