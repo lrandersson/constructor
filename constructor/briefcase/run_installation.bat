@@ -1,4 +1,6 @@
-set "INSTDIR=%cd%"
+rem Assign INSTDIR and normalize the path
+set "INSTDIR=%~dp0.."
+for %%I in ("%INSTDIR%") do set "INSTDIR=%%~fI"
 set "BASE_PATH=%INSTDIR%\base"
 set "PREFIX=%BASE_PATH%"
 set "CONDA_EXE=%INSTDIR%\{{ conda_exe_name }}"
