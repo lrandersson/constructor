@@ -8,11 +8,11 @@ rem Recreate an empty payload tar. This file was deleted during installation but
 rem MSI installer expects it to exist.
 type nul > "%PAYLOAD_TAR%"
 
-"%CONDA_EXE%" menuinst --prefix "%BASE_PATH%" --remove
-if errorlevel 1 (
-    echo [ERROR] %CONDA_EXE% failed with exit code %errorlevel%.
-    exit /b %errorlevel%
-)
+rem "%CONDA_EXE%" menuinst --prefix "%BASE_PATH%" --remove
+rem if errorlevel 1 (
+rem     echo [ERROR] %CONDA_EXE% failed with exit code %errorlevel%.
+rem     exit /b %errorlevel%
+rem )
 "%CONDA_EXE%" constructor uninstall --prefix "%BASE_PATH%"
 if errorlevel 1 (
     echo [ERROR] %CONDA_EXE% failed with exit code %errorlevel%.
