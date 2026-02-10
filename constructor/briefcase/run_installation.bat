@@ -4,7 +4,7 @@ set "PREFIX=%BASE_PATH%"
 set "CONDA_EXE=%INSTDIR%\{{ conda_exe_name }}"
 set "PAYLOAD_TAR=%INSTDIR%\{{ archive_name }}"
 
-echo "Unpacking payload..."
+echo Unpacking payload...
 "%CONDA_EXE%" constructor extract --prefix "%INSTDIR%" --tar-from-stdin < "%PAYLOAD_TAR%"
 "%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs
 
