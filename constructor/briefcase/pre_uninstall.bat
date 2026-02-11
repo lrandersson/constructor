@@ -22,8 +22,8 @@ rem     exit /b %errorlevel%
 rem )
 
 
-"%CONDA_EXE%" constructor uninstall --prefix "%BASE_PATH%"
-if errorlevel 1 (
-    echo [ERROR] %CONDA_EXE% failed with exit code %errorlevel%.
-    exit /b %errorlevel%
-)
+rem "%CONDA_EXE%" constructor uninstall --prefix "%BASE_PATH%"
+rem if errorlevel 1 (
+rem     echo [ERROR] %CONDA_EXE% failed with exit code %errorlevel%.
+rem     exit /b %errorlevel%
+rem )
