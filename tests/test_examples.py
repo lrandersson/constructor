@@ -420,6 +420,11 @@ def _run_uninstaller_msi(
         "/qn",
     ]
 
+    # Temporary debug
+    print("base exists:", (install_dir / "base").exists())
+    print("conda-meta exists:", (install_dir / "base" / "conda-meta").exists())
+    print("conda-meta history exists:", (install_dir / "base" / "conda-meta" / "history").exists())
+
     # Add MSI verbose log file
     log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "_uninstall.log")
     cmd.extend(["/L*V", str(log_path)])
