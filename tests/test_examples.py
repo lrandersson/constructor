@@ -425,6 +425,11 @@ def _run_uninstaller_msi(
     print("conda-meta exists:", (install_dir / "base" / "conda-meta").exists())
     print("conda-meta history exists:", (install_dir / "base" / "conda-meta" / "history").exists())
 
+    print(f"\n=== Top-level contents of {install_dir} ===")
+    for p in sorted(install_dir.iterdir()):
+        kind = "DIR " if p.is_dir() else "FILE"
+        print(f"{kind:4} {p.name}")
+
     # Add MSI verbose log file
     log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "_uninstall.log")
     cmd.extend(["/L*V", str(log_path)])
