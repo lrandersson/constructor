@@ -21,9 +21,17 @@ rem     echo [ERROR] %CONDA_EXE% failed with exit code %errorlevel%.
 rem     exit /b %errorlevel%
 rem )
 
+if defined PREUNINSTALL_LOG (
+  set "LOG=%PREUNINSTALL_LOG%"
+) else (
+  set "LOG=%TEMP%\constructor-preuninstall.log"
+)
 
-rem "%CONDA_EXE%" constructor uninstall --prefix "%BASE_PATH%"
-rem if errorlevel 1 (
-rem     echo [ERROR] %CONDA_EXE% failed with exit code %errorlevel%.
-rem     exit /b %errorlevel%
-rem )
+"%CONDA_EXE%" constructor uninstall --prefix "%BASE_PATH%" > "%LOG%" 2>&1
+set "RC=%ERRORLEVEL%"
+type "%LOG%"
+
+if not "%RC%"=="0" (
+  echo [ERROR] %CONDA_EXE% failed with exit code %RC%.
+  exit /b %RC%
+)

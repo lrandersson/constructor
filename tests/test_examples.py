@@ -419,20 +419,38 @@ def _run_uninstaller_msi(
         str(installer),
         "/qn",
     ]
+
+    # Add MSI verbose log file
     log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "_uninstall.log")
     cmd.extend(["/L*V", str(log_path)])
+
+    # Add log file for pre_uninstall.bat
+    pre_uninstall_log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "_pre_uninstall.log")
+    env = {"PREUNINSTALL_LOG": str(pre_uninstall_log_path)}
     try:
-        process = _execute(cmd, timeout=timeout, check=check)
+        process = _execute(cmd, timeout=timeout, check=check, env_vars=env)
     except subprocess.CalledProcessError as e:
+        # Dump pre-uninstall log first (usually the most useful)
+        if pre_uninstall_log_path.exists():
+            print(f"\n=== PRE-UNINSTALL LOG {pre_uninstall_log_path} START ===")
+            # pre_uninstall output is typically UTF-8 or ANSI; try UTF-8 first
+            try:
+                print(pre_uninstall_log_path.read_text(encoding="utf-8", errors="replace")[-15000:])
+            except UnicodeError:
+                print(pre_uninstall_log_path.read_text(errors="replace")[-15000:])
+            print(f"=== PRE-UNINSTALL LOG {pre_uninstall_log_path} END ===\n")
+        else:
+            print(f"\n(pre-uninstall log not found at {pre_uninstall_log_path})\n")
+
+        # Dump MSI uninstall log (often UTF-16)
         if log_path.exists():
-            # When running on the CI system, it tries to decode a UTF-16 log file as UTF-8,
-            # therefore we need to specify encoding before printing.
             print(f"\n=== MSI UNINSTALL LOG {log_path} START ===")
-            print(
-                log_path.read_text(encoding="utf-16", errors="replace")[-15000:]
-            )  # last 15k chars
-            print(f"\n=== MSI UNINSTALL LOG {log_path} END ===")
-        raise e
+            print(log_path.read_text(encoding="utf-16", errors="replace")[-15000:])  # last 15k chars
+            print(f"=== MSI UNINSTALL LOG {log_path} END ===\n")
+        else:
+            print(f"\n(msi uninstall log not found at {log_path})\n")
+        raise
+
     if check:
         # TODO:
         # Check log and if there are remaining files, similar to the exe installers
