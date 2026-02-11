@@ -428,7 +428,7 @@ def _run_uninstaller_msi(
     pre_uninstall_log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "_pre_uninstall.log")
     env = {"PREUNINSTALL_LOG": str(pre_uninstall_log_path)}
     try:
-        process = _execute(cmd, timeout=timeout, check=check, env_vars=env)
+        process = _execute(cmd, installer_input = None, timeout=timeout, check=check, **env)
     except subprocess.CalledProcessError as e:
         # Dump pre-uninstall log first (usually the most useful)
         if pre_uninstall_log_path.exists():
