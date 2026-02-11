@@ -426,21 +426,21 @@ def _run_uninstaller_msi(
 
     # Add log file for pre_uninstall.bat
     pre_uninstall_log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "_pre_uninstall.log")
+    fallback = Path(os.environ.get("TEMP")) / "constructor-preuninstall.log"
+    if fallback.exists():
+        os.remove(fallback)
     env = {"PREUNINSTALL_LOG": str(pre_uninstall_log_path)}
     try:
         process = _execute(cmd, installer_input = None, timeout=timeout, check=check, **env)
-    except subprocess.CalledProcessError as e:
-        # Dump pre-uninstall log first (usually the most useful)
-        if pre_uninstall_log_path.exists():
-            print(f"\n=== PRE-UNINSTALL LOG {pre_uninstall_log_path} START ===")
-            # pre_uninstall output is typically UTF-8 or ANSI; try UTF-8 first
-            try:
-                print(pre_uninstall_log_path.read_text(encoding="utf-8", errors="replace")[-15000:])
-            except UnicodeError:
-                print(pre_uninstall_log_path.read_text(errors="replace")[-15000:])
-            print(f"=== PRE-UNINSTALL LOG {pre_uninstall_log_path} END ===\n")
+    except subprocess.CalledProcessError:
+        # Dump pre-uninstall log
+        file_to_read = pre_uninstall_log_path if pre_uninstall_log_path.exists() else fallback
+        if file_to_read.exists():
+            print(f"\n=== PRE-UNINSTALL LOG {file_to_read} START ===")
+            print(file_to_read.read_text(encoding="utf-8", errors="replace")[-15000:])
+            print(f"=== PRE-UNINSTALL LOG {file_to_read} END ===\n")
         else:
-            print(f"\n(pre-uninstall log not found at {pre_uninstall_log_path})\n")
+            print(f"\n(pre-uninstall log not found at {file_to_read})\n")
 
         # Dump MSI uninstall log (often UTF-16)
         if log_path.exists():
