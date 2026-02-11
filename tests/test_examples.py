@@ -339,10 +339,11 @@ def _sentinel_file_checks(example_path, install_dir):
 
 
 def is_admin() -> bool:
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except Exception:
-        return False
+    #try:
+    #    return ctypes.windll.shell32.IsUserAnAdmin()
+    #except Exception:
+    #    return False
+    return False
 
 
 def calculate_msi_install_path(installer: Path) -> Path:
