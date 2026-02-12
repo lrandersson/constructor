@@ -356,6 +356,7 @@ def calculate_msi_install_path(installer: Path) -> Path:
     else:
         local_dir = os.environ.get("LOCALAPPDATA", str(Path.home() / r"AppData\Local"))
         root_dir = Path(local_dir) / "Programs"
+        root_dir.mkdir(parents=True, exist_ok=True)
 
     assert root_dir.is_dir()  # Sanity check to avoid strange unexpected errors
     return Path(root_dir) / dir_name
