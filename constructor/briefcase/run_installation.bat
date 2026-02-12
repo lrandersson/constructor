@@ -39,11 +39,11 @@ echo PAYLOAD_TAR=%PAYLOAD_TAR% >> "%LOG%"
 
 echo Unpacking payload...
 rem "%CONDA_EXE%" constructor extract --prefix "%INSTDIR%" --tar-from-stdin < "%PAYLOAD_TAR%" >> "%LOG%" 2>&1
-"%CONDA_EXE%" --prefix "%INSTDIR%" --extract-tarball < "%PAYLOAD_TAR%" >> "%LOG%" 2>&1
+"%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-tarball < "%PAYLOAD_TAR%" >> "%LOG%" 2>&1
 if errorlevel 1 ( type "%LOG%" & exit /b %errorlevel% )
 
 rem "%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs >> "%LOG%" 2>&1
-"%CONDA_EXE%" --prefix "%BASE_PATH%" --extract-conda-pkgs >> "%LOG%" 2>&1
+"%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs >> "%LOG%" 2>&1
 if errorlevel 1 ( type "%LOG%" & exit /b %errorlevel% )
 
 if not exist "%BASE_PATH%\" (
