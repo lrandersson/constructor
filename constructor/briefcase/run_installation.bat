@@ -1,4 +1,7 @@
-set "INSTDIR=%cd%"
+rem Set and normalize path to INSTDIR
+set "INSTDIR=%~dp0.."
+for %%I in ("%INSTDIR%") do set "INSTDIR=%%~fI"
+
 set "BASE_PATH=%INSTDIR%\base"
 set "PREFIX=%BASE_PATH%"
 set "CONDA_EXE=%INSTDIR%\{{ conda_exe_name }}"
@@ -6,7 +9,16 @@ set "PAYLOAD_TAR=%INSTDIR%\{{ archive_name }}"
 
 echo Unpacking payload...
 "%CONDA_EXE%" constructor extract --prefix "%INSTDIR%" --tar-from-stdin < "%PAYLOAD_TAR%"
+if errorlevel 1 exit /b %errorlevel%
+
 "%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs
+if errorlevel 1 exit /b %errorlevel%
+
+if not exist "%BASE_PATH%\" (
+  echo [ERROR] base not created: "%BASE_PATH%"
+  dir "%INSTDIR%"
+  exit /b 2
+)
 
 set CONDA_PROTECT_FROZEN_ENVS=0
 set "CONDA_ROOT_PREFIX=%BASE_PATH%"
@@ -15,6 +27,7 @@ set CONDA_EXTRA_SAFETY_CHECKS=no
 set "CONDA_PKGS_DIRS=%BASE_PATH%\pkgs"
 
 "%CONDA_EXE%" install --offline --file "%BASE_PATH%\conda-meta\initial-state.explicit.txt" -yp "%BASE_PATH%"
+if errorlevel 1 exit /b %errorlevel%
 
 rem Delete the payload to save disk space.
 rem A truncated placeholder of 0 bytes is recreated during uninstall
