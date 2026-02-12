@@ -392,6 +392,11 @@ def _run_installer_msi(
 
     log_path = Path(os.environ.get("TEMP")) / (install_dir.name + ".log")
     cmd.extend(["/L*V", str(log_path)])
+
+    post_install_log = Path(os.environ.get("TEMP")) / "constructor-postinstall.log"
+    if post_install_log.exists():
+        os.remove(post_install_log)
+
     try:
         process = _execute(cmd, installer_input=installer_input, timeout=timeout, check=check)
     except subprocess.CalledProcessError as e:
@@ -403,6 +408,12 @@ def _run_installer_msi(
                 log_path.read_text(encoding="utf-16", errors="replace")[-15000:]
             )  # last 15k chars
             print(f"\n=== MSI LOG {log_path} END ===")
+        if post_install_log.exists():
+            print(f"\n=== MSI POST INSTALL LOG {post_install_log} START ===")
+            print(post_install_log.read_text(encoding="utf-8", errors="replace"))
+            print(f"\n=== MSI POST INSTALL LOG {log_path} END ===")
+        else:
+            print(f"\n(post-install log not found at {post_install_log})\n")
         raise e
     if check:
         print("A check for MSI Installers not yet implemented")
