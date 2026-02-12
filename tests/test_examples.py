@@ -390,7 +390,7 @@ def _run_installer_msi(
         "/qn",
     ]
 
-    log_path = Path(os.environ.get("TEMP")) / (install_dir.name + ".log")
+    log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "-install.log")
     cmd.extend(["/L*V", str(log_path)])
 
     post_install_log = Path(os.environ.get("TEMP")) / (install_dir.name + "-postinstall.log")
@@ -417,6 +417,14 @@ def _run_installer_msi(
         raise e
     if check:
         print("A check for MSI Installers not yet implemented")
+
+    # Sanity check the installation directory
+    expected_items = [install_dir / "base", install_dir / "base" / "conda-meta", install_dir / "_conda.exe"]
+    missing_items = [item for item in expected_items if not item.exists()]
+    if missing_items:
+        missing_items_string = "\n".join(missing_items)
+        raise Exception(f"Sanity check failed, unable to find expected paths: \n{missing_items_string}")
+
     return process
 
 
@@ -444,11 +452,11 @@ def _run_uninstaller_msi(
         print(f"{kind:4} {p.name}")
 
     # Add MSI verbose log file
-    log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "_uninstall.log")
+    log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "-uninstall.log")
     cmd.extend(["/L*V", str(log_path)])
 
     # Add log file for pre_uninstall.bat
-    pre_uninstall_log = Path(os.environ.get("TEMP")) / (install_dir.name + "preuninstall.log")
+    pre_uninstall_log = Path(os.environ.get("TEMP")) / (install_dir.name + "-preuninstall.log")
     if pre_uninstall_log.exists():
         os.remove(pre_uninstall_log)
     try:

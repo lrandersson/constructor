@@ -19,7 +19,7 @@ set "CONDA_PKGS_DIRS=%BASE_PATH%\pkgs"
 {%- if add_debug %}
 rem Get the name of the install directory
 for %%I in ("%INSTDIR%") do set "APPNAME=%%~nxI"
-set "LOG=%TEMP%\%APPNAME%.log"
+set "LOG=%TEMP%\%APPNAME%-postinstall.log"
 
 echo ==== run_installation start ==== >> "%LOG%"
 echo SCRIPT=%~f0 >> "%LOG%"
@@ -49,6 +49,10 @@ if errorlevel 1 ( {{ dump_and_exit }} )
 rem "%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs{{ redir }}
 "%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs{{ redir }}
 if errorlevel 1 ( {{ dump_and_exit }} )
+
+if not exist "%BASE_PATH%" (
+  {% if add_debug %}echo [ERROR] "%BASE_PATH%" not found! >> "%LOG%" & type "%LOG%" & {% endif %}exit /b 12
+)
 
 "%CONDA_EXE%" install --offline --file "%BASE_PATH%\conda-meta\initial-state.explicit.txt" -yp "%BASE_PATH%"{{ redir }}
 if errorlevel 1 ( {{ dump_and_exit }} )
