@@ -1730,8 +1730,7 @@ def test_not_in_installed_menu_list_(tmp_path, request, no_registry):
     options = ["/InstallationType=JustMe", f"/NoRegistry={no_registry}"]
     for installer, install_dir in create_installer(input_path, tmp_path):
         if installer.suffix == ".msi":
-            # This test is intended for .exe installers only
-            pass
+            pytest.skip("Test is only applicable for NSIS based installers.")
         _run_installer(
             input_path,
             installer,
