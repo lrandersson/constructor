@@ -464,7 +464,7 @@ def _run_installer_msi(
     log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "-install.log")
     for log_file in [post_install_log, log_path]:
         if log_file.exists():
-            log_file.remove()
+            os.remove(log_file)
     cmd.extend(["/L*V", str(log_path)])
 
     # Run installer and handle errors/logs if necessary
@@ -515,7 +515,7 @@ def _run_uninstaller_msi(
     log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "-uninstall.log")
     for log_file in [pre_uninstall_log, log_path]:
         if log_file.exists():
-            log_file.remove()
+            os.remove(log_file)
     cmd.extend(["/L*V", str(log_path)])
 
     try:
