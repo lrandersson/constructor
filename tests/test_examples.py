@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ctypes
 import getpass
 import json
 import os
@@ -10,6 +9,7 @@ import sys
 import time
 import warnings
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from datetime import timedelta
 from functools import cache
 from pathlib import Path
@@ -338,28 +338,97 @@ def _sentinel_file_checks(example_path, install_dir):
             )
 
 
-def is_admin() -> bool:
-    #try:
-    #    return ctypes.windll.shell32.IsUserAnAdmin()
-    #except Exception:
-    #    return False
-    return False
-
-
 def calculate_msi_install_path(installer: Path) -> Path:
     """This is a temporary solution for now since we cannot choose the install location ourselves.
     Installers are named <name>-<version>-Windows-x86_64.msi.
     """
     dir_name = installer.name.replace("-Windows-x86_64.msi", "").replace("-", " ")
-    if is_admin():
-        root_dir = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files"))
-    else:
-        local_dir = os.environ.get("LOCALAPPDATA", str(Path.home() / r"AppData\Local"))
-        root_dir = Path(local_dir) / "Programs"
-        root_dir.mkdir(parents=True, exist_ok=True)
+    local_dir = os.environ.get("LOCALAPPDATA", str(Path.home() / r"AppData\Local"))
+    root_dir = Path(local_dir) / "Programs"
+    root_dir.mkdir(parents=True, exist_ok=True)
 
     assert root_dir.is_dir()  # Sanity check to avoid strange unexpected errors
     return Path(root_dir) / dir_name
+
+
+def handle_exception_and_error_out(
+    failure: InstallationFailure | UninstallationFailure, original_exception: BaseException
+) -> None:
+    """Print failure context (including logs) and re-raise with exception chaining."""
+    print(failure.read_text())
+    raise failure from original_exception
+
+
+def _read_briefcase_log_tail(path: Path, last_digits: int) -> str:
+    """Helper function to read logs from installers created with briefcase.
+    The encoding can vary between the different logs.
+    """
+    if not path or not path.exists():
+        return f"(log not found: {path})"
+
+    # Try UTF-16 first (MSI logs), fallback to UTF-8
+    try:
+        text = path.read_text(encoding="utf-16", errors="replace")
+    except UnicodeError:
+        text = path.read_text(encoding="utf-8", errors="replace")
+
+    return text[last_digits:]
+
+
+@dataclass
+class InstallationFailure(RuntimeError):
+    cmd: list[str]
+    returncode: int
+    msi_log: Path | None = None
+    post_install_log: Path | None = None
+
+    def read_text(self, last_digits: int = -15000) -> str:
+        parts = [
+            f"Command: {self.cmd}",
+            f"Return code: {self.returncode}",
+        ]
+
+        if self.post_install_log:
+            parts.append(
+                f"\n=== MSI LOG POST INSTALL: {self.post_install_log} ===\n"
+                + _read_briefcase_log_tail(self.post_install_log, last_digits)
+            )
+
+        if self.msi_log:
+            parts.append(
+                f"\n=== MSI LOG: {self.msi_log} ===\n"
+                + _read_briefcase_log_tail(self.msi_log, last_digits)
+            )
+
+        return "\n".join(parts)
+
+
+@dataclass
+class UninstallationFailure(RuntimeError):
+    cmd: list[str]
+    returncode: int
+    msi_log: Path | None = None
+    pre_uninstall_log: Path | None = None
+
+    def read_text(self, last_digits: int = -15000) -> str:
+        parts = [
+            f"Command: {self.cmd}",
+            f"Return code: {self.returncode}",
+        ]
+
+        if self.pre_uninstall_log:
+            parts.append(
+                f"\n=== MSI LOG PRE UNINSTALL: {self.pre_uninstall_log} ===\n"
+                + _read_briefcase_log_tail(self.pre_uninstall_log, last_digits)
+            )
+
+        if self.msi_log:
+            parts.append(
+                f"\n=== MSI LOG: {self.msi_log} ===\n"
+                + _read_briefcase_log_tail(self.msi_log, last_digits)
+            )
+
+        return "\n".join(parts)
 
 
 def _run_installer_msi(
@@ -390,40 +459,40 @@ def _run_installer_msi(
         "/qn",
     ]
 
+    # Prepare logging
+    post_install_log = Path(os.environ.get("TEMP")) / (install_dir.name + "-postinstall.log")
     log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "-install.log")
+    for log_file in [post_install_log, log_path]:
+        if log_file.exists():
+            log_file.remove()
     cmd.extend(["/L*V", str(log_path)])
 
-    post_install_log = Path(os.environ.get("TEMP")) / (install_dir.name + "-postinstall.log")
-    if post_install_log.exists():
-        os.remove(post_install_log)
-
+    # Run installer and handle errors/logs if necessary
     try:
         process = _execute(cmd, installer_input=installer_input, timeout=timeout, check=check)
     except subprocess.CalledProcessError as e:
-        if log_path.exists():
-            # When running on the CI system, it tries to decode a UTF-16 log file as UTF-8,
-            # therefore we need to specify encoding before printing.
-            print(f"\n=== MSI LOG {log_path} START ===")
-            print(
-                log_path.read_text(encoding="utf-16", errors="replace")[-15000:]
-            )  # last 15k chars
-            print(f"\n=== MSI LOG {log_path} END ===")
-        if post_install_log.exists():
-            print(f"\n=== MSI POST INSTALL LOG {post_install_log} START ===")
-            print(post_install_log.read_text(encoding="utf-8", errors="replace"))
-            print(f"\n=== MSI POST INSTALL LOG {log_path} END ===")
-        else:
-            print(f"\n(post-install log not found at {post_install_log})\n")
-        raise e
-    if check:
-        print("A check for MSI Installers not yet implemented")
+        handle_exception_and_error_out(
+            InstallationFailure(
+                cmd=cmd,
+                returncode=e.returncode,
+                msi_log=log_path,
+                post_install_log=post_install_log,
+            ),
+            original_exception=e,
+        )
 
     # Sanity check the installation directory
-    expected_items = [install_dir / "base", install_dir / "base" / "conda-meta", install_dir / "_conda.exe"]
+    expected_items = [
+        install_dir / "base",
+        install_dir / "base" / "conda-meta",
+        install_dir / "_conda.exe",
+    ]
     missing_items = [item for item in expected_items if not item.exists()]
     if missing_items:
         missing_items_string = "\n".join(missing_items)
-        raise Exception(f"Sanity check failed, unable to find expected paths: \n{missing_items_string}")
+        raise Exception(
+            f"Sanity check failed, unable to find expected paths: \n{missing_items_string}"
+        )
 
     return process
 
@@ -441,50 +510,31 @@ def _run_uninstaller_msi(
         "/qn",
     ]
 
-    # Temporary debug
-    print("base exists:", (install_dir / "base").exists())
-    print("conda-meta exists:", (install_dir / "base" / "conda-meta").exists())
-    print("conda-meta history exists:", (install_dir / "base" / "conda-meta" / "history").exists())
-
-    print(f"\n=== Top-level contents of {install_dir} ===")
-    for p in sorted(install_dir.iterdir()):
-        kind = "DIR " if p.is_dir() else "FILE"
-        print(f"{kind:4} {p.name}")
-
-    # Add MSI verbose log file
+    # Prepare logging
+    pre_uninstall_log = Path(os.environ.get("TEMP")) / (install_dir.name + "-preuninstall.log")
     log_path = Path(os.environ.get("TEMP")) / (install_dir.name + "-uninstall.log")
+    for log_file in [pre_uninstall_log, log_path]:
+        if log_file.exists():
+            log_file.remove()
     cmd.extend(["/L*V", str(log_path)])
 
-    # Add log file for pre_uninstall.bat
-    pre_uninstall_log = Path(os.environ.get("TEMP")) / (install_dir.name + "-preuninstall.log")
-    if pre_uninstall_log.exists():
-        os.remove(pre_uninstall_log)
     try:
-        process = _execute(cmd, installer_input = None, timeout=timeout, check=check)
-    except subprocess.CalledProcessError:
-        # Dump pre-uninstall log
-        if pre_uninstall_log.exists():
-            print(f"\n=== PRE-UNINSTALL LOG {pre_uninstall_log} START ===")
-            print(pre_uninstall_log.read_text(encoding="utf-8", errors="replace")[-15000:])
-            print(f"=== PRE-UNINSTALL LOG {pre_uninstall_log} END ===\n")
-        else:
-            print(f"\n(pre-uninstall log not found at {pre_uninstall_log})\n")
-
-        # Dump MSI uninstall log (often UTF-16)
-        if log_path.exists():
-            print(f"\n=== MSI UNINSTALL LOG {log_path} START ===")
-            print(log_path.read_text(encoding="utf-16", errors="replace")[-15000:])  # last 15k chars
-            print(f"=== MSI UNINSTALL LOG {log_path} END ===\n")
-        else:
-            print(f"\n(msi uninstall log not found at {log_path})\n")
-        raise
+        process = _execute(cmd, installer_input=None, timeout=timeout, check=check)
+    except subprocess.CalledProcessError as e:
+        handle_exception_and_error_out(
+            UninstallationFailure(
+                cmd=cmd,
+                returncode=e.returncode,
+                msi_log=log_path,
+                post_install_log=pre_uninstall_log,
+            ),
+            original_exception=e,
+        )
 
     if check:
         # TODO:
         # Check log and if there are remaining files, similar to the exe installers
         pass
-    # This is temporary until uninstallation works fine
-    shutil.rmtree(str(install_dir), ignore_errors=True)
 
     return process
 
