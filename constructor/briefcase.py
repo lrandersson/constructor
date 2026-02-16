@@ -338,6 +338,7 @@ class Payload:
             "archive_name": self.archive_name,
             "conda_exe_name": self.conda_exe_name,
             "add_debug": self.add_debug_logging,
+            "register_envs": str(self.info.get("register_envs", True)).lower(),
         }
 
         # Render the templates now using jinja and the defined context

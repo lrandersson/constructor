@@ -1160,8 +1160,6 @@ def test_register_envs(tmp_path, request):
     """Verify that 'register_envs: False' results in the environment not being registered."""
     input_path = _example_path("register_envs")
     for installer, install_dir in create_installer(input_path, tmp_path):
-        if installer.suffix == ".msi":
-            raise NotImplementedError("Test for 'register_envs' not yet implemented for MSI")
         _run_installer(input_path, installer, install_dir, request=request)
         environments_txt = Path("~/.conda/environments.txt").expanduser().read_text()
         assert str(install_dir) not in environments_txt
