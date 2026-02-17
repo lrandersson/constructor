@@ -62,3 +62,6 @@ rem Delete the payload to save disk space.
 rem A truncated placeholder of 0 bytes is recreated during uninstall
 rem because MSI expects the file to be there to clean the registry.
 del "%PAYLOAD_TAR%"
+if errorlevel 1 ( {{ dump_and_exit }} )
+
+exit /b 0
