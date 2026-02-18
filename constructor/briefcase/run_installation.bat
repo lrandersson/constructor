@@ -1,6 +1,14 @@
 @echo {{ 'on' if add_debug else 'off' }}
 setlocal
 
+{%- macro error_block(message, code) -%}
+echo [ERROR] {{ message }}
+{%- if add_debug %}
+>> "%LOG%" echo [ERROR] {{ message }}
+{%- endif %}
+exit /b {{ code }}
+{%- endmacro -%}
+
 rem Assign INSTDIR and normalize the path
 set "INSTDIR=%~dp0.."
 for %%I in ("%INSTDIR%") do set "INSTDIR=%%~fI"
@@ -34,12 +42,12 @@ echo PAYLOAD_TAR=%PAYLOAD_TAR% >> "%LOG%"
 {%- set redir = ' >> "%LOG%" 2>&1' if add_debug else '' %}
 {%- set dump_and_exit = 'type "%LOG%" & exit /b %errorlevel%' if add_debug else 'exit /b %errorlevel%' %}
 
-rem Sanity checks
+rem Consistency checks
 if not exist "%CONDA_EXE%" (
-  {% if add_debug %}echo [ERROR] CONDA_EXE not found: "%CONDA_EXE%" >> "%LOG%" & type "%LOG%" & {% endif %}exit /b 10
+  {{ error_block('CONDA_EXE not found: "%CONDA_EXE%"', 10) }}
 )
 if not exist "%PAYLOAD_TAR%" (
-  {% if add_debug %}echo [ERROR] PAYLOAD_TAR not found: "%PAYLOAD_TAR%" >> "%LOG%" & type "%LOG%" & {% endif %}exit /b 11
+  {{ error_block('PAYLOAD_TAR not found: "%PAYLOAD_TAR%"', 11) }}
 )
 
 echo Unpacking payload...
@@ -52,7 +60,7 @@ rem "%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs{{ redi
 if errorlevel 1 ( {{ dump_and_exit }} )
 
 if not exist "%BASE_PATH%" (
-  {% if add_debug %}echo [ERROR] "%BASE_PATH%" not found! >> "%LOG%" & type "%LOG%" & {% endif %}exit /b 12
+  {{ error_block('"%BASE_PATH%" not found!', 12) }}
 )
 
 "%CONDA_EXE%" install --offline --file "%BASE_PATH%\conda-meta\initial-state.explicit.txt" -yp "%BASE_PATH%"{{ redir }}

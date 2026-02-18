@@ -1,6 +1,14 @@
 @echo {{ 'on' if add_debug else 'off' }}
 setlocal
 
+{%- macro error_block(message, code) -%}
+echo [ERROR] {{ message }}
+{%- if add_debug %}
+>> "%LOG%" echo [ERROR] {{ message }}
+{%- endif %}
+exit /b {{ code }}
+{%- endmacro -%}
+
 rem Assign INSTDIR and normalize the path
 set "INSTDIR=%~dp0.."
 for %%I in ("%INSTDIR%") do set "INSTDIR=%%~fI"
@@ -28,16 +36,15 @@ echo PAYLOAD_TAR=%PAYLOAD_TAR% >> "%LOG%"
 {%- set redir = ' >> "%LOG%" 2>&1' if add_debug else '' %}
 {%- set dump_and_exit = 'type "%LOG%" & exit /b %errorlevel%' if add_debug else 'exit /b %errorlevel%' %}
 
-rem Sanity checks
+rem Consistency checks
 if not exist "%CONDA_EXE%" (
-  {% if add_debug %}echo [ERROR] CONDA_EXE not found: "%CONDA_EXE%" >> "%LOG%" & type "%LOG%" & {% endif %}exit /b 10
+  {{ error_block('CONDA_EXE not found: "%CONDA_EXE%"', 10) }}
 )
-
 rem Recreate an empty payload tar. This file was deleted during installation but the
 rem MSI installer expects it to exist.
 type nul > "%PAYLOAD_TAR%"
 if errorlevel 1 (
-  {% if add_debug %}echo [ERROR] Failed to create "%PAYLOAD_TAR%" >> "%LOG%" & type "%LOG%" & {% endif %}exit /b %errorlevel%
+  {{ error_block('Failed to create "%PAYLOAD_TAR%"', '%errorlevel%') }}
 )
 
 "%CONDA_EXE%" constructor uninstall --prefix "%BASE_PATH%"{{ redir }}
