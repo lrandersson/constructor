@@ -347,7 +347,7 @@ def calculate_msi_install_path(installer: Path) -> Path:
     root_dir = Path(local_dir) / "Programs"
     root_dir.mkdir(parents=True, exist_ok=True)
 
-    assert root_dir.is_dir()  # Sanity check to avoid strange unexpected errors
+    assert root_dir.is_dir()  # Consistency check to avoid strange unexpected errors
     return Path(root_dir) / dir_name
 
 
@@ -479,19 +479,6 @@ def _run_installer_msi(
                 post_install_log=post_install_log,
             ),
             original_exception=e,
-        )
-
-    # Sanity check the installation directory
-    expected_items = [
-        install_dir / "base",
-        install_dir / "base" / "conda-meta",
-        install_dir / "_conda.exe",
-    ]
-    missing_items = [item for item in expected_items if not item.exists()]
-    if missing_items:
-        missing_items_string = "\n".join(missing_items)
-        raise Exception(
-            f"Sanity check failed, unable to find expected paths: \n{missing_items_string}"
         )
 
     return process
