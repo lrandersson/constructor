@@ -238,10 +238,12 @@ def test_payload_conda_exe():
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
-def test_payload_templates_are_rendered():
+@pytest.mark.parametrize("debug_logging", [True, False])
+def test_payload_templates_are_rendered(debug_logging):
     """Test that templates are rendered when the payload is prepared."""
     info = mock_info.copy()
     payload = Payload(info)
+    payload.add_debug_logging = debug_logging
     rendered_templates = payload.render_templates()
     assert len(rendered_templates) == 2  # There should be at least two files
     for f in rendered_templates:
@@ -250,3 +252,26 @@ def test_payload_templates_are_rendered():
         assert "{{" not in text and "}}" not in text
         assert "{%" not in text and "%}" not in text
         assert "{#" not in text and "#}" not in text
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+@pytest.mark.parametrize("debug_logging", [True, False])
+def test_templates_debug_mode(debug_logging):
+    """Test that debug logging affects template generation."""
+    info = mock_info.copy()
+    payload = Payload(info)
+    payload.add_debug_logging = debug_logging
+    rendered_templates = payload.render_templates()
+    assert len(rendered_templates) == 2  # There should be at least two files
+
+    for f in rendered_templates:
+        assert f.dst.is_file()
+
+        with open(f.dst) as open_file:
+            lines = open_file.readlines()
+
+        # Check the first line.
+        expected = "@echo on\n" if debug_logging else "@echo off\n"
+        assert lines[0] == expected
+        # If debug_logging is True, we expect to find %LOG%, otherwise not.
+        assert debug_logging == any("%LOG%" in line for line in lines)

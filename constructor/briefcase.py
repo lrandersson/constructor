@@ -4,6 +4,7 @@ Logic to build installers using Briefcase.
 
 import functools
 import logging
+import os
 import re
 import shutil
 import sys
@@ -249,6 +250,10 @@ class Payload:
     archive_name: str = "payload.tar.gz"
     conda_exe_name: str = "_conda.exe"
 
+    # There might be other ways we want to enable `add_debug_logging`, but it has proven
+    # very useful at least for the CI environment.
+    add_debug_logging: bool = bool(os.environ.get("CI")) and os.environ.get("CI") != "0"
+
     @functools.cached_property
     def root(self) -> Path:
         """Create root upon first access and cache it."""
@@ -332,6 +337,8 @@ class Payload:
         context: dict[str, str] = {
             "archive_name": self.archive_name,
             "conda_exe_name": self.conda_exe_name,
+            "add_debug": self.add_debug_logging,
+            "register_envs": str(self.info.get("register_envs", True)).lower(),
         }
 
         # Render the templates now using jinja and the defined context
