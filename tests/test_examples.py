@@ -1717,7 +1717,7 @@ def test_not_in_installed_menu_list_(tmp_path, request, no_registry):
     options = ["/InstallationType=JustMe", f"/NoRegistry={no_registry}"]
     for installer, install_dir in create_installer(input_path, tmp_path):
         if installer.suffix == ".msi":
-            pytest.skip("Test is only applicable for NSIS based installers.")
+            continue
         _run_installer(
             input_path,
             installer,
@@ -1728,17 +1728,17 @@ def test_not_in_installed_menu_list_(tmp_path, request, no_registry):
             options=options,
         )
 
-    # Use the installer file name for the registry search
-    installer_file_name_parts = Path(installer).name.split("-")
-    name = installer_file_name_parts[0]
-    version = installer_file_name_parts[1]
-    partial_name = f"{name} {version}"
+        # Use the installer file name for the registry search
+        installer_file_name_parts = Path(installer).name.split("-")
+        name = installer_file_name_parts[0]
+        version = installer_file_name_parts[1]
+        partial_name = f"{name} {version}"
 
-    is_in_installed_apps_menu = _is_program_installed(partial_name)
-    _run_uninstaller_exe(install_dir)
+        is_in_installed_apps_menu = _is_program_installed(partial_name)
+        _run_uninstaller_exe(install_dir)
 
-    # If no_registry=0 we expect is_in_installed_apps_menu=True
-    # If no_registry=1 we expect is_in_installed_apps_menu=False
-    assert is_in_installed_apps_menu == (no_registry == 0), (
-        f"Unable to find program '{partial_name}' in the 'Installed apps' menu"
-    )
+        # If no_registry=0 we expect is_in_installed_apps_menu=True
+        # If no_registry=1 we expect is_in_installed_apps_menu=False
+        assert is_in_installed_apps_menu == (no_registry == 0), (
+            f"Unable to find program '{partial_name}' in the 'Installed apps' menu"
+        )
