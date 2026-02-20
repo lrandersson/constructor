@@ -18,25 +18,19 @@ set "PREFIX=%BASE_PATH%"
 set "CONDA_EXE=%INSTDIR%\{{ conda_exe_name }}"
 set "PAYLOAD_TAR=%INSTDIR%\{{ archive_name }}"
 
-set CONDA_EXTRA_SAFETY_CHECKS=no
-set CONDA_PROTECT_FROZEN_ENVS=0
-set CONDA_REGISTER_ENVS={{ register_envs }}
-set CONDA_SAFETY_CHECKS=disabled
-set "CONDA_ROOT_PREFIX=%BASE_PATH%"
-set "CONDA_PKGS_DIRS=%BASE_PATH%\pkgs"
-
 {%- if add_debug %}
 rem Get the name of the install directory
 for %%I in ("%INSTDIR%") do set "APPNAME=%%~nxI"
-set "LOG=%TEMP%\%APPNAME%-postinstall.log"
+set "LOG=%TEMP%\%APPNAME%-preuninstall.log"
 
-echo ==== run_installation start ==== >> "%LOG%"
+echo ==== pre_uninstall start ==== >> "%LOG%"
 echo SCRIPT=%~f0 >> "%LOG%"
 echo CWD=%CD% >> "%LOG%"
 echo INSTDIR=%INSTDIR% >> "%LOG%"
 echo BASE_PATH=%BASE_PATH% >> "%LOG%"
 echo CONDA_EXE=%CONDA_EXE% >> "%LOG%"
 echo PAYLOAD_TAR=%PAYLOAD_TAR% >> "%LOG%"
+"%CONDA_EXE%" --version >> "%LOG%" 2>&1
 {%- endif %}
 
 {%- set conda_log = ' --log-file "%LOG%"' if add_debug else '' %}
@@ -46,28 +40,15 @@ rem Consistency checks
 if not exist "%CONDA_EXE%" (
   {{ error_block('CONDA_EXE not found: "%CONDA_EXE%"', 10) }}
 )
-if not exist "%PAYLOAD_TAR%" (
-  {{ error_block('PAYLOAD_TAR not found: "%PAYLOAD_TAR%"', 11) }}
+
+rem Recreate an empty payload tar. This file was deleted during installation but the
+rem MSI installer expects it to exist.
+type nul > "%PAYLOAD_TAR%"
+if errorlevel 1 (
+  {{ error_block('Failed to create "%PAYLOAD_TAR%"', '%errorlevel%') }}
 )
 
-echo Unpacking payload...
-"%CONDA_EXE%"{{ conda_log }} constructor extract --prefix "%INSTDIR%" --tar-from-stdin < "%PAYLOAD_TAR%"
-if errorlevel 1 ( {{ dump_and_exit }} )
-
-"%CONDA_EXE%"{{ conda_log }} constructor extract --prefix "%BASE_PATH%" --conda-pkgs
-if errorlevel 1 ( {{ dump_and_exit }} )
-
-if not exist "%BASE_PATH%" (
-  {{ error_block('"%BASE_PATH%" not found!', 12) }}
-)
-
-"%CONDA_EXE%"{{ conda_log }} install --offline --file "%BASE_PATH%\conda-meta\initial-state.explicit.txt" -yp "%BASE_PATH%"
-if errorlevel 1 ( {{ dump_and_exit }} )
-
-rem Delete the payload to save disk space.
-rem A truncated placeholder of 0 bytes is recreated during uninstall
-rem because MSI expects the file to be there to clean the registry.
-del "%PAYLOAD_TAR%"
+"%CONDA_EXE%"{{ conda_log }} constructor uninstall --prefix "%BASE_PATH%"
 if errorlevel 1 ( {{ dump_and_exit }} )
 
 exit /b 0
