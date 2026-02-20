@@ -37,7 +37,7 @@ def pytest_generate_tests(metafunc):
 
     marker = metafunc.definition.get_closest_marker("installer_types")
     if marker:
-        requested = list(marker.args[0])
+        requested = list(marker.args)  # marker.args is already the tuple of strings
         types = [t for t in requested if t in ALL_INSTALLER_TYPES]
         if not types:
             pytest.skip(
