@@ -51,12 +51,12 @@ if not exist "%PAYLOAD_TAR%" (
 )
 
 echo Unpacking payload...
-rem "%CONDA_EXE%" constructor extract --prefix "%INSTDIR%" --tar-from-stdin < "%PAYLOAD_TAR%"{{ redir }}
-"%CONDA_EXE%" constructor --prefix "%INSTDIR%" --extract-tarball < "%PAYLOAD_TAR%"{{ redir }}
+%CONDA_EXE%" constructor extract --prefix "%INSTDIR%" --tar-from-stdin < "%PAYLOAD_TAR%"{{ redir }}
+rem "%CONDA_EXE%" constructor --prefix "%INSTDIR%" --extract-tarball < "%PAYLOAD_TAR%"{{ redir }}
 if errorlevel 1 ( {{ dump_and_exit }} )
 
-rem "%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs{{ redir }}
 "%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs{{ redir }}
+rem "%CONDA_EXE%" constructor --prefix "%BASE_PATH%" --extract-conda-pkgs{{ redir }}
 if errorlevel 1 ( {{ dump_and_exit }} )
 
 if not exist "%BASE_PATH%" (
