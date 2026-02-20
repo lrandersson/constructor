@@ -86,4 +86,5 @@ select = [
 [tool.pytest.ini_options]
 markers = [
     "examples",
+    "installer_types: restrict test to specific installer types (args: tuple of suffix strings)",
 ]
