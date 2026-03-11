@@ -4,7 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from constructor.briefcase import Payload, _get_python_info, get_bundle_app_name, get_name_version
+from constructor.briefcase import (
+    Payload,
+    _get_python_info,
+    create_install_options_list,
+    create_uninstall_options_list,
+    get_bundle_app_name,
+    get_license,
+    get_name_version,
+)
 from constructor.conda_interface import cc_platform
 
 """
@@ -571,3 +579,122 @@ def test_pre_uninstall_registry_uses_reg64():
     reg_delete_line = next(line for line in text.splitlines() if "reg delete" in line)
     assert "/reg:64" in reg_query_line or "%REG64%" in reg_query_line
     assert "/reg:64" in reg_delete_line or "%REG64%" in reg_delete_line
+
+
+@pytest.mark.parametrize(
+    "register_python, has_python, expected_option_names",
+    [
+        (True, True, ["register_python", "initialize_conda", "clear_package_cache"]),
+        (False, True, ["initialize_conda", "clear_package_cache"]),
+        (True, False, ["initialize_conda", "clear_package_cache"]),
+    ],
+)
+def test_create_install_options_list_basic(register_python, has_python, expected_option_names):
+    """Verify install options vary based on Python presence and register setting."""
+    info = {
+        "name": "Test",
+        "register_python": register_python,
+        "_dists": ["python-3.11.5-0.tar.bz2"] if has_python else [],
+    }
+    options = create_install_options_list(info)
+    option_names = [opt["name"] for opt in options]
+    assert option_names == expected_option_names
+
+
+def test_create_install_options_list_with_shortcuts():
+    """Verify shortcuts option appears when _enable_shortcuts is True."""
+    info = {
+        "name": "Test",
+        "_dists": [],
+        "_enable_shortcuts": True,
+    }
+    options = create_install_options_list(info)
+    option_names = [opt["name"] for opt in options]
+    assert "enable_shortcuts" in option_names
+
+
+def test_create_install_options_list_desc_without_script():
+    """Test that an error is raised when script description is set but script path is not."""
+    info = {
+        "name": "Test",
+        "_dists": [],
+        "pre_install_desc": "Run pre-install",
+    }
+    with pytest.raises(ValueError, match="pre_install_desc was set, but pre_install was not"):
+        create_install_options_list(info)
+
+
+def test_create_install_options_list_script_not_bat(tmp_path):
+    """Test that an error is raised when script exists but is not a .bat file."""
+    script = tmp_path / "script.txt"
+    script.write_text("echo hello")
+    info = {
+        "name": "Test",
+        "_dists": [],
+        "pre_install": str(script),
+        "pre_install_desc": "Run pre-install",
+    }
+    with pytest.raises(ValueError, match="must be an existing '.bat' file"):
+        create_install_options_list(info)
+
+
+def test_create_install_options_list_condabin_mode():
+    """Test that initialize_conda='condabin' produces the correct description."""
+    info = {
+        "name": "Test",
+        "_dists": [],
+        "initialize_conda": "condabin",
+    }
+    options = create_install_options_list(info)
+    conda_option = next(opt for opt in options if opt["name"] == "initialize_conda")
+    assert "condabin" in conda_option["description"]
+    assert "only contains the 'conda' executables" in conda_option["description"]
+
+
+@pytest.mark.parametrize("script_type", ["pre", "post"])
+def test_create_install_options_list_with_script_option(tmp_path, script_type):
+    """Test that a script option is added when both script and description are provided."""
+    script = tmp_path / "install_script.bat"
+    script.write_text("echo hello")
+    info = {
+        "name": "Test",
+        "_dists": [],
+        f"{script_type}_install": str(script),
+        f"{script_type}_install_desc": f"Run {script_type}-install tasks",
+    }
+    options = create_install_options_list(info)
+    option_names = [opt["name"] for opt in options]
+    assert f"{script_type}_install_script" in option_names
+
+    script_option = next(opt for opt in options if opt["name"] == f"{script_type}_install_script")
+    assert script_option["description"] == f"Run {script_type}-install tasks"
+
+
+@pytest.mark.parametrize(
+    "uninstall_with_conda_exe, expected_option_names",
+    [
+        (True, ["remove_user_data", "remove_caches"]),
+        (False, []),
+    ],
+)
+def test_create_uninstall_options_list(uninstall_with_conda_exe, expected_option_names):
+    """Verify uninstall options only appear when uninstall_with_conda_exe is True."""
+    info = {"uninstall_with_conda_exe": uninstall_with_conda_exe}
+    options = create_uninstall_options_list(info)
+    option_names = [opt["name"] for opt in options]
+    assert option_names == expected_option_names
+
+
+def test_get_license_with_file():
+    """Test that get_license returns the provided license_file path."""
+    info = {"license_file": "/path/to/license.txt"}
+    result = get_license(info)
+    assert result == {"file": "/path/to/license.txt"}
+
+
+def test_get_license_placeholder():
+    """Test that get_license returns a placeholder license when none is specified."""
+    info = {}
+    result = get_license(info)
+    assert "file" in result
+    assert "placeholder_license.txt" in result["file"]
