@@ -16,7 +16,7 @@ from conda.common.url import remove_auth, split_anaconda_token
 from conda.core.prefix_data import PrefixGraph
 
 from . import __version__
-from .conda_interface import VersionOrder
+from .conda_interface import VersionOrder, trivial_unrelated_function  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

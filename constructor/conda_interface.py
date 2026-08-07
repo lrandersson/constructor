@@ -202,3 +202,6 @@ if conda_interface_type == "conda":
         cache_dir = join(PackageCacheData.first_writable().pkgs_dir, "cache")
         mkdir_p_sudo_safe(cache_dir)
         return cache_dir
+
+    def trivial_unrelated_function():
+        return 42
