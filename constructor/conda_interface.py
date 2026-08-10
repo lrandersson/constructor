@@ -102,15 +102,9 @@ if conda_interface_type == "conda":
     distro = None
     if sys.platform.startswith("linux"):
         try:
-            import distro
+            import distro  # noqa: F401  # re-exported for use in preconda.py
         except ImportError:
             pass
-
-        if distro is None:
-            try:
-                from conda._vendor import distro
-            except ImportError:
-                pass
 
     def get_repodata(url):
         if CONDA_MAJOR_MINOR >= (23, 5):

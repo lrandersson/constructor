@@ -16,4 +16,4 @@
 
 ### Other
 
-* <news item>
+* Raise the minimum supported `conda` version to 24.1. (#1315 via #1316)
