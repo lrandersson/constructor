@@ -71,10 +71,10 @@ jobs:
             conda-standalone: conda-standalone-nightly
           - os: windows-2022
             python-version: "3.11"
-            conda-standalone: conda-standalone
+            conda-standalone: conda-standalone-nightly  # micromamba disabled
           - os: windows-2022
             python-version: "3.12"
-            conda-standalone: conda-standalone-nightly  # micromamba disabled
+            conda-standalone: conda-standalone
           - os: windows-2022
             python-version: "3.13"
             conda-standalone: conda-standalone-onedir  # micromamba disabled
