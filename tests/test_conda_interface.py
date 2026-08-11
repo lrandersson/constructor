@@ -79,6 +79,7 @@ def test_get_build_env_records_with_explicit_prefix(tmp_path, patch_prefix_data,
     result = get_build_env_records(prefix=str(tmp_path))
 
     assert sorted(rec.name for rec in result) == sorted(rec.name for rec in records)
+    assert all(type(rec) is PackageRecord for rec in result)
 
 
 def test_get_build_env_records_defaults_to_active_environment(

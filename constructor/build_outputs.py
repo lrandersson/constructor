@@ -15,6 +15,7 @@ from conda.base.constants import UNKNOWN_CHANNEL
 from conda.common.url import remove_auth, split_anaconda_token
 from conda.core.prefix_data import PrefixData, PrefixGraph
 from conda.exports import default_prefix
+from conda.models.records import PackageRecord
 
 from . import __version__
 from .conda_interface import VersionOrder
@@ -33,7 +34,10 @@ def get_build_env_records(prefix=None):
     if prefix is None:
         prefix = default_prefix
     # interoperability=True also picks up pip-installed packages, not just conda ones.
-    return list(PrefixData(prefix, interoperability=True).iter_records())
+    prefix_records = PrefixData(prefix, interoperability=True).iter_records()
+    # PrefixRecord carries per-file installation data (files, paths_data) that isn't
+    # relevant here and bloats info.json; PackageRecord drops it but keeps package metadata.
+    return [PackageRecord(**record.dump()) for record in prefix_records]
 
 
 def _validate_output(output):
