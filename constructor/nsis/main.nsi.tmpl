@@ -657,8 +657,9 @@ Function .onInit
     # Select the correct registry to look at, depending
     # on whether it's a 32-bit or 64-bit installer
     SetRegView {{ BITS }}
-{%- if win64 %}
+{%- if win64 or win_arm64 %}
     # If we're a 64-bit installer, make sure it's 64-bit Windows
+    # Not verified yet on ARM64 Windows.
     ${IfNot} ${RunningX64}
         MessageBox MB_OK|MB_ICONEXCLAMATION \
             "This installer is for a 64-bit version for ${NAME}$\n\

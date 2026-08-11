@@ -32,6 +32,7 @@ SUPPORTED_PLATFORMS = [
     "linux-ppc64le",
     "linux-s390x",
     "win-64",
+    "win-arm64",
     "osx-64",
     "osx-arm64",
 ]
