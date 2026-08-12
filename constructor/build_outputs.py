@@ -15,7 +15,6 @@ from conda.base.constants import UNKNOWN_CHANNEL
 from conda.common.url import remove_auth, split_anaconda_token
 from conda.core.prefix_data import PrefixData, PrefixGraph
 from conda.exports import default_prefix
-from conda.models.records import PackageRecord
 
 from . import __version__
 from .conda_interface import VersionOrder
@@ -33,11 +32,21 @@ def get_build_env_records(prefix=None):
     """
     if prefix is None:
         prefix = default_prefix
+
+    # Define a set of keys that we don't need to include in info.json.
+    # The result of excluding these is a much smaller info.json (up to 70x).
+    to_exclude = (
+        "extracted_package_dir",
+        "files",
+        "link",
+        "package_tarball_full_path",
+        "paths_data",
+    )
     # interoperability=True also picks up pip-installed packages, not just conda ones.
     prefix_records = PrefixData(prefix, interoperability=True).iter_records()
-    # PrefixRecord carries per-file installation data (files, paths_data) that isn't
-    # relevant here and bloats info.json; PackageRecord drops it but keeps package metadata.
-    return [PackageRecord(**record.dump()) for record in prefix_records]
+    return [
+        {k: v for k, v in record.dump().items() if k not in to_exclude} for record in prefix_records
+    ]
 
 
 def _validate_output(output):
