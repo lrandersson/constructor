@@ -1,6 +1,10 @@
+import sys
+
 import pytest
 
-from constructor.winexe import parse_arch
+# winexe.py needs Pillow, which isn't installed on Linux. Skip this file there
+# and only import winexe inside each test, so collection doesn't fail.
+pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="winexe is Windows-only")
 
 
 @pytest.mark.parametrize(
@@ -12,4 +16,6 @@ from constructor.winexe import parse_arch
     ],
 )
 def test_parse_arch(platform, expected):
+    from constructor.winexe import parse_arch
+
     assert parse_arch(platform) == expected

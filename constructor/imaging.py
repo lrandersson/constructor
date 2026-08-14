@@ -14,6 +14,8 @@ from os.path import dirname, join
 from pathlib import Path
 from random import randint
 
+from PIL import Image, ImageDraw, ImageFont
+
 from ._schema import InstallerTypes
 
 ttf_path = join(dirname(__file__), "ttf", "Vera.ttf")
@@ -35,8 +37,6 @@ header_size_msi = (493, 58)
 
 
 def new_background(size, color, bs=20, boxes=50):
-    from PIL import Image, ImageDraw
-
     im = Image.new("RGB", size, color=color)
     d = ImageDraw.Draw(im)
     for unused in range(boxes):
@@ -48,8 +48,6 @@ def new_background(size, color, bs=20, boxes=50):
 
 
 def add_text(im, xy, text, min_lines, line_height, font, color):
-    from PIL import ImageDraw
-
     x, y = xy
     d = ImageDraw.Draw(im)
     lines = text.splitlines()
@@ -63,8 +61,6 @@ def add_text(im, xy, text, min_lines, line_height, font, color):
 
 
 def mk_welcome_image(info):
-    from PIL import ImageFont
-
     font = ImageFont.truetype(BytesIO(ttf_bytes), 20)
     im = new_background(welcome_size, info["_color"])
     text = "\n".join([info["welcome_image_text"], info["version"]])
@@ -73,8 +69,6 @@ def mk_welcome_image(info):
 
 
 def mk_welcome_image_osx(info):
-    from PIL import Image, ImageFont
-
     font = ImageFont.truetype(BytesIO(ttf_bytes), 40)
     # Transparent background
     im = Image.new("RGBA", welcome_size_osx, color=(0, 0, 0, 0))
@@ -84,8 +78,6 @@ def mk_welcome_image_osx(info):
 
 
 def mk_header_image(info):
-    from PIL import Image, ImageFont
-
     font = ImageFont.truetype(BytesIO(ttf_bytes), 20)
     im = Image.new("RGB", header_size, color=white)
     text = info["header_image_text"]
@@ -95,8 +87,6 @@ def mk_header_image(info):
 
 
 def mk_icon_image(info):
-    from PIL import ImageDraw, ImageFont
-
     font = ImageFont.truetype(BytesIO(ttf_bytes), 200)
     im = new_background(icon_size, info["_color"])
     d = ImageDraw.Draw(im)
@@ -125,8 +115,6 @@ def _resize_for_msi_welcome(image_path):
     The user's image is resized to 164x312 and placed on the left, with white
     padding on the right for the dialog text.
     """
-    from PIL import Image
-
     im = Image.open(image_path)
 
     # Resize to side panel dimensions (164x312)
@@ -140,8 +128,6 @@ def _resize_for_msi_welcome(image_path):
 
 
 def write_images(info: dict, dir_path: Path, installer_type: InstallerTypes = InstallerTypes.EXE):
-    from PIL import Image
-
     if installer_type == InstallerTypes.EXE:
         instructions = [
             ("welcome", welcome_size, mk_welcome_image, ".bmp"),

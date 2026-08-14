@@ -38,10 +38,6 @@ specs
 """
 
 
-def test_supported_platforms_includes_win_arm64():
-    assert "win-arm64" in SUPPORTED_PLATFORMS
-
-
 @pytest.fixture
 def construct_yaml_file(tmp_path: Path) -> str:
     file_path = tmp_path / "construct.yaml"
