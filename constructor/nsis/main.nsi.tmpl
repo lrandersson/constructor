@@ -1735,13 +1735,20 @@ Section "Install"
         RMDir /r "$TmpDir"
     ${EndIf}
 
-    MessageBox MB_OK "DEBUG PAUSE: inspect $INSTDIR now with icacls, then click OK to continue."
     ${Print} "Setting installation directory permissions..."
-    # Enable inheritance on all files inside $INSTDIR.
-    # Use icacls because it is much faster than custom NSIS solutions.
-    # We continue on error because icacls fails on broken links.
+    # Some files can end up with inheritance disabled after installation.
+    # We do this because these files only ever live in a handful of known
+    # subdirectories per environment, so scanning the entire $INSTDIR tree
+    # with icacls /T wastes a lot of time walking the vast majority of files,
+    # which never had this problem to begin with.
     # `type` is used to simulate a `tee`-like output in cmd.exe
-    push '"$ICACLS_EXE" "$INSTDIR\*" /inheritance:e /T /C /Q > "${STEP_LOG}" 2>&1 & SET ERR=!ERRORLEVEL! & type "${STEP_LOG}" & EXIT /B !ERR!'
+    {%- set icacls_cmds = [] %}
+    {%- for env in SETUP_ENVS %}
+    {%- for subdir in ["Scripts", "Library\\bin", "Library\\usr\\bin", "condabin"] %}
+    {%- set _ = icacls_cmds.append('"$ICACLS_EXE" "' ~ env.prefix ~ '\\' ~ subdir ~ '\*" /inheritance:e /T /C /Q') %}
+    {%- endfor %}
+    {%- endfor %}
+    push '({{ icacls_cmds|join(" & ") }}) > "${STEP_LOG}" 2>&1 & SET ERR=!ERRORLEVEL! & type "${STEP_LOG}" & EXIT /B !ERR!'
     push 'Failed to enable inheritance for all files in the installation directory.'
     push 'WithLog'
     call AbortRetryNSExecWait
