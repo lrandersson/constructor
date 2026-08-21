@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../constructor/data/construct.schema.json
+"$schema": "../../constructor/data/construct.schema.json"
+
+name: IcaclsPerfInvestigation
+version: 0.0.1
+company: Anaconda
+
+channels:
+  - conda-forge
+
+specs:
+  - python 3.12.*
+  - pip
+  - black
+
+installer_type: exe
+keep_pkgs: False
+initialize_by_default: false
+register_python: false
