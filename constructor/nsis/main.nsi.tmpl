@@ -1735,6 +1735,7 @@ Section "Install"
         RMDir /r "$TmpDir"
     ${EndIf}
 
+    MessageBox MB_OK "DEBUG PAUSE: inspect $INSTDIR now with icacls, then click OK to continue."
     ${Print} "Setting installation directory permissions..."
     # Enable inheritance on all files inside $INSTDIR.
     # Use icacls because it is much faster than custom NSIS solutions.
