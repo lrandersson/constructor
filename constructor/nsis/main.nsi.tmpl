@@ -1731,6 +1731,7 @@ Section "Install"
     ${EndIf}
 
     WriteUninstaller "$INSTDIR\Uninstall-${NAME}.exe"
+    MessageBox MB_OK "DEBUG PAUSE (pre-cleanup): inspect $TmpDir now with icacls, then click OK to continue."
     ${If} ${FileExists} "$TmpDir"
         RMDir /r "$TmpDir"
     ${EndIf}
