@@ -1519,6 +1519,7 @@ Section "Install"
     SetOutPath "$INSTDIR"
     File {{ conda_exe }}
     File {{ pre_uninstall }}
+    File {{ fix_launcher_acls }}
     File {{ installer_info }}
 
 {%- for path, files in EXTRA_FILES | items %}
@@ -1747,12 +1748,13 @@ Section "Install"
     ${EndIf}
 
     ${Print} "Setting installation directory permissions..."
-    # Enable inheritance on all files inside $INSTDIR.
-    # Use icacls because it is much faster than custom NSIS solutions.
-    # We continue on error because icacls fails on broken links.
-    # `type` is used to simulate a `tee`-like output in cmd.exe
-    push '"$ICACLS_EXE" "$INSTDIR\*" /inheritance:e /T /C /Q > "${STEP_LOG}" 2>&1 & SET ERR=!ERRORLEVEL! & type "${STEP_LOG}" & EXIT /B !ERR!'
-    push 'Failed to enable inheritance for all files in the installation directory.'
+    # `type` is used to simulate a `tee`-like output in cmd.exe.
+    {%- set icacls_args = ['"$ICACLS_EXE"'] -%}
+    {%- for env in SETUP_ENVS -%}
+    {%- set _ = icacls_args.append('"' ~ env.prefix ~ '\\Scripts\\*"') -%}
+    {%- endfor %}
+    push '"$INSTDIR\fix_launcher_acls.bat" {{ icacls_args|join(" ") }} > "${STEP_LOG}" 2>&1 & SET ERR=!ERRORLEVEL! & type "${STEP_LOG}" & EXIT /B !ERR!'
+    push 'Failed to enable inheritance for the entry point launchers.'
     push 'WithLog'
     call AbortRetryNSExecWait
     ${Print} "Done!"

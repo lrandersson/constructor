@@ -69,7 +69,7 @@ pytestmark = pytest.mark.examples
 REPO_DIR = Path(__file__).parent.parent
 ON_CI = bool(os.environ.get("CI")) and os.environ.get("CI") != "0"
 CONSTRUCTOR_CONDA_EXE = os.environ.get("CONSTRUCTOR_CONDA_EXE")
-CONSTRUCTOR_VERBOSE = os.environ.get("CONSTRUCTOR_VERBOSE")
+CONSTRUCTOR_VERBOSE = os.environ.get("CONSTRUCTOR_VERBOSE", "").lower() in ("1", "true", "yes")
 CONDA_EXE, CONDA_EXE_VERSION = identify_conda_exe(CONSTRUCTOR_CONDA_EXE)
 if CONDA_EXE_VERSION is not None:
     CONDA_EXE_VERSION = Version(CONDA_EXE_VERSION)
@@ -822,6 +822,53 @@ def _is_micromamba(path) -> bool:
     return name == StandaloneExe.MAMBA
 
 
+def _entry_point_launchers(prefix: Path) -> list[Path]:
+    """Collect the entry point launchers conda hard linked from a shared stub exe.
+
+    The stub has inheritance disabled and hard links share one ACL, so the installer
+    has to re-enable inheritance for these files.
+    """
+    launchers = []
+    for record in prefix.glob("conda-meta/*.json"):
+        paths_data = json.loads(record.read_text()).get("paths_data", {})
+        launchers.extend(
+            prefix / path["_path"]
+            for path in paths_data.get("paths", [])
+            if path.get("path_type") == "windows_python_entry_point_exe"
+        )
+    return launchers
+
+
+def _check_permission_inheritance(install_dir: Path):
+    """Ensure every file in an installation inherits permissions from its parent.
+
+    The installer only fixes each environment's `Scripts` directory, so also verify that
+    conda still puts the entry point launchers there.
+    """
+    prefixes = [install_dir, *install_dir.glob("envs/*")]
+    launchers = [launcher for prefix in prefixes for launcher in _entry_point_launchers(prefix)]
+    assert launchers, "Installation must contain entry point launchers"
+    outside_scripts = [launcher for launcher in launchers if launcher.parent.name != "Scripts"]
+    assert outside_scripts == [], (
+        "Entry point launchers must be in a Scripts directory, "
+        "otherwise the installer does not fix their permissions"
+    )
+
+    protected = []
+    not_inherited = []
+    for file in install_dir.glob("**/*"):
+        security_descriptor = win32security.GetFileSecurity(
+            str(file), win32security.DACL_SECURITY_INFORMATION
+        )
+        dacl_flags = security_descriptor.GetSecurityDescriptorControl()[0]
+        if dacl_flags & win32security.SE_DACL_PROTECTED:
+            protected.append(file)
+        if not dacl_flags & win32security.SE_DACL_AUTO_INHERITED:
+            not_inherited.append(file)
+    assert protected == [], "Files must not be protected from inheriting permissions"
+    assert not_inherited == [], "Files must inherit from installation directory"
+
+
 def test_installer_types_for_example_matches_platform():
     """Validate any example with 'installer_type: all'; and that the resolved types match the platform set."""
     types = installer_types_for_example(_example_path("miniforge"))
@@ -904,6 +951,7 @@ def test_example_extra_envs(tmp_path, request, installer_type):
         if installer_type == InstallerTypes.MSI:
             _run_uninstaller_msi(installer, install_dir)
         else:
+            _check_permission_inheritance(base)
             _run_uninstaller_exe(install_dir=install_dir)
 
 
@@ -1719,9 +1767,8 @@ def test_allusers_exe(tmp_path, request, installer_type):
         sd = win32security.GetFileSecurity(str(filepath), win32security.DACL_SECURITY_INFORMATION)
         dacl_flags = sd.GetSecurityDescriptorControl()[0]
         dacl_info = {
-            "protected": bool(dacl_flags & win32security.SE_DACL_PROTECTED),
-            "inherited": bool(dacl_flags & win32security.SE_DACL_AUTO_INHERITED),
             "permissions": {},
+            "protected": bool(dacl_flags & win32security.SE_DACL_PROTECTED),
         }
         dacl = sd.GetSecurityDescriptorDacl()
         for a in range(dacl.GetAceCount()):
@@ -1779,19 +1826,14 @@ def test_allusers_exe(tmp_path, request, installer_type):
         )
 
     # Test all files inside installation directory
+    _check_permission_inheritance(install_dir)
     incorrect_permissions = {
-        "protected": [],
-        "not_inherited": [],
         "write_access": {acct: [] for acct in SDDL_ABBREVIATIONS},
         "bad_read_exec": {acct: [] for acct in SDDL_ABBREVIATIONS if acct != "AU"},
         "not_set": [],
     }
     for file in install_dir.glob("**/*"):
         dacl = _get_dacl_information(file)
-        if dacl["protected"]:
-            incorrect_permissions["protected"].append(file)
-        if not dacl["inherited"]:
-            incorrect_permissions["not_inherited"].append(file)
         if len(dacl["permissions"].keys()) == 0:
             incorrect_permissions["not_set"].append(file)
             continue
@@ -1805,12 +1847,6 @@ def test_allusers_exe(tmp_path, request, installer_type):
                 permissions["generic_execute"] and permissions["generic_read"]
             ):
                 files.append(file)
-    assert incorrect_permissions["protected"] == [], (
-        "Files must not be protected from inheriting permissions"
-    )
-    assert incorrect_permissions["not_inherited"] == [], (
-        "Files must inherit from installation directory"
-    )
     assert incorrect_permissions["not_set"] == [], (
         "File permission must include either domain or built-in users"
     )
