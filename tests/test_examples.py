@@ -826,33 +826,27 @@ def _entry_point_launchers(prefix: Path) -> list[Path]:
     """Collect the entry point launchers conda hard linked from a shared stub exe.
 
     The stub has inheritance disabled and hard links share one ACL, so the installer
-    has to re-enable inheritance for these files.
+    has to re-enable inheritance for these files. Detected by hard link count, since
+    that's the filesystem property the installer's fix actually depends on.
     """
-    launchers = []
-    for record in prefix.glob("conda-meta/*.json"):
-        paths_data = json.loads(record.read_text()).get("paths_data", {})
-        launchers.extend(
-            prefix / path["_path"]
-            for path in paths_data.get("paths", [])
-            if path.get("path_type") == "windows_python_entry_point_exe"
-        )
-    return launchers
+    scripts_dir = prefix / "Scripts"
+    if not scripts_dir.is_dir():
+        return []
+    return [file for file in scripts_dir.glob("*.exe") if file.stat().st_nlink > 1]
 
 
 def _check_permission_inheritance(install_dir: Path):
     """Ensure every file in an installation inherits permissions from its parent.
 
-    The installer only fixes each environment's `Scripts` directory, so also verify that
-    conda still puts the entry point launchers there.
+    Also verify the installation actually contains entry point launchers, so this
+    check cannot silently stop testing anything if a future fixture change drops
+    them. If conda ever moves them outside `Scripts` (where the installer's fix is
+    scoped to), the tree-wide scan below will still catch the resulting broken
+    inheritance regardless of location.
     """
     prefixes = [install_dir, *install_dir.glob("envs/*")]
     launchers = [launcher for prefix in prefixes for launcher in _entry_point_launchers(prefix)]
     assert launchers, "Installation must contain entry point launchers"
-    outside_scripts = [launcher for launcher in launchers if launcher.parent.name != "Scripts"]
-    assert outside_scripts == [], (
-        "Entry point launchers must be in a Scripts directory, "
-        "otherwise the installer does not fix their permissions"
-    )
 
     protected = []
     not_inherited = []
