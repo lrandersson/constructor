@@ -1519,7 +1519,6 @@ Section "Install"
     SetOutPath "$INSTDIR"
     File {{ conda_exe }}
     File {{ pre_uninstall }}
-    File {{ fix_launcher_acls }}
     File {{ installer_info }}
 
 {%- for path, files in EXTRA_FILES | items %}
@@ -1749,14 +1748,12 @@ Section "Install"
 
     ${Print} "Setting installation directory permissions..."
     # `type` is used to simulate a `tee`-like output in cmd.exe.
-    {%- set icacls_args = ['"$ICACLS_EXE"'] -%}
-    {%- for env in SETUP_ENVS -%}
-    {%- set _ = icacls_args.append('"' ~ env.prefix ~ '\\Scripts\\*"') -%}
-    {%- endfor %}
-    push '"$INSTDIR\fix_launcher_acls.bat" {{ icacls_args|join(" ") }} > "${STEP_LOG}" 2>&1 & SET ERR=!ERRORLEVEL! & type "${STEP_LOG}" & EXIT /B !ERR!'
-    push 'Failed to enable inheritance for the entry point launchers.'
+    {%- for env in SETUP_ENVS %}
+    push '"$ICACLS_EXE" "{{ env.prefix }}\Scripts\*" /inheritance:e /T /C /Q > "${STEP_LOG}" 2>&1 & SET ERR=!ERRORLEVEL! & type "${STEP_LOG}" & EXIT /B !ERR!'
+    push 'Failed to update ACLs in environment "{{ env.name }}".'
     push 'WithLog'
     call AbortRetryNSExecWait
+    {%- endfor %}
     ${Print} "Done!"
 SectionEnd
 

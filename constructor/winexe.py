@@ -144,46 +144,6 @@ def setup_envs_commands(info, dir_path):
     return environments
 
 
-FIX_LAUNCHER_ACLS_BAT = """\
-SET ERR=0
-SET ICACLS=%1
-SHIFT
-:loop
-IF "%~1"=="" GOTO :done
-IF EXIST "%~1" (
-    %ICACLS% "%~1" /inheritance:e /T /C /Q
-    IF ERRORLEVEL 1 (
-        ECHO Failed to enable inheritance for entry point launchers in "%~1"
-        SET ERR=1
-    )
-)
-SHIFT
-GOTO :loop
-:done
-EXIT /B %ERR%
-"""
-
-
-def write_fix_launcher_acls_bat(dir_path: str) -> None:
-    """Write a batch script that re-enables ACL inheritance on entry point launchers.
-
-    Entry point launchers are hard links to a stub exe with inheritance disabled (see
-    the .nsi template's "Setting installation directory permissions" install step),
-    and hard links share one ACL. This script takes icacls.exe's path as its first
-    argument, followed by one `Scripts` glob per environment, and reports which
-    glob(s), if any, it failed to fix.
-
-    This is a standalone file (its args, including $INSTDIR-based paths only known at
-    install time, are filled in by the .nsi template) rather than an inlined nsExec
-    one-liner, because cmd.exe's quote-stripping when invoked via `cmd /C "..."`
-    mangles a one-liner with several `if`/`&`-chained statements once there's more
-    than one environment. The script itself has no per-env logic, so it doesn't need
-    regenerating when the number of environments changes.
-    """
-    with open(join(dir_path, "fix_launcher_acls.bat"), "w", newline="\r\n") as fo:
-        fo.write(FIX_LAUNCHER_ACLS_BAT)
-
-
 def make_nsi(
     info: dict,
     dir_path: str,
@@ -210,7 +170,6 @@ def make_nsi(
     info["post_install_desc"] = info.get("post_install_desc", "")
 
     setup_envs = setup_envs_commands(info, dir_path)
-    write_fix_launcher_acls_bat(dir_path)
 
     variables = {
         "installer_name": name,
@@ -243,7 +202,6 @@ def make_nsi(
         "pre_install": "@pre_install.bat",
         "post_install": "@post_install.bat",
         "pre_uninstall": "@pre_uninstall.bat",
-        "fix_launcher_acls": "@fix_launcher_acls.bat",
         "installer_info": "@.installer.info",
         "index_cache": "@" + join("pkgs", "cache"),
         "repodata_record": "@" + join("pkgs", "repodata_record.json"),
