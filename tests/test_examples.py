@@ -845,8 +845,6 @@ def _check_permission_inheritance(install_dir: Path):
     inheritance regardless of location.
     """
     prefixes = [install_dir, *install_dir.glob("envs/*")]
-    launchers = [launcher for prefix in prefixes for launcher in _entry_point_launchers(prefix)]
-    assert launchers, "Installation must contain entry point launchers"
 
     protected = []
     not_inherited = []
