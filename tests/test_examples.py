@@ -844,8 +844,6 @@ def _check_permission_inheritance(install_dir: Path):
     scoped to), the tree-wide scan below will still catch the resulting broken
     inheritance regardless of location.
     """
-    prefixes = [install_dir, *install_dir.glob("envs/*")]
-
     protected = []
     not_inherited = []
     for file in install_dir.glob("**/*"):
